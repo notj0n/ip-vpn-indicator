@@ -10,15 +10,6 @@ A simple GNOME Shell extension that displays your current IP address in the top 
 - **Interface Type Detection**: Different icons for WiFi and Ethernet connections
 - **Auto-refresh**: Updates every 5 seconds to reflect network changes
 
-## Icons
-
-The extension uses different icons to indicate your connection type:
-
--  **WiFi** - Connected via wireless interface
-- 󰈀 **Ethernet** - Connected via wired interface
-- 󰌘 **VPN** - VPN connection active (`tun0` or Tailscale exit node)
-- 󰈂 **No Internet** - No active network connection
-
 ## Installation
 
 ### Manual Installation
