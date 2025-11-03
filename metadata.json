@@ -1,0 +1,12 @@
+{
+  "uuid": "ip-vpn-indicator@joncvn",
+  "name": "IP/VPN Indicator",
+  "description": "Displays your IP address and VPN status in the top panel",
+  "shell-version": [
+    "45",
+    "46",
+    "47"
+  ],
+  "version": 1,
+  "url": "https://github.com/yourusername/ip-vpn-indicator"
+}
