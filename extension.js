@@ -51,7 +51,10 @@ const NetworkIndicator = GObject.registerClass(
         let regularIPInfo = this._getRegularIP();
         if (regularIPInfo) {
           let icon = this._getInterfaceIcon(regularIPInfo.interface);
-          this._label.set_text(`${icon} ${regularIPInfo.ip}`);
+          this._label.set_text(
+            `${regularIPInfo.ip} (${regularIPInfo.interface})`,
+            //`${icon}  ${regularIPInfo.ip} (${regularIPInfo.interface})`,
+          );
         } else {
           this._label.set_text("󰈂 No Internet");
         }
