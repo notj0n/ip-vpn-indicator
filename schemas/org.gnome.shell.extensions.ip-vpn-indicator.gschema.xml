@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.ip-vpn-indicator" path="/org/gnome/shell/extensions/ip-vpn-indicator/">
+    <key name="test-ip" type="s">
+      <default>'1.1.1.1'</default>
+      <summary>Test IP for network detection</summary>
+      <description>IP address used to detect the default network interface. Common choices: 1.1.1.1 (Cloudflare), 8.8.8.8 (Google), 9.9.9.9 (Quad9)</description>
+    </key>
+  </schema>
+</schemalist>

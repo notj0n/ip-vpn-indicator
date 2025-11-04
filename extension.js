@@ -10,8 +10,10 @@ import * as Main from "resource:///org/gnome/shell/ui/main.js";
 
 const NetworkIndicator = GObject.registerClass(
   class NetworkIndicator extends PanelMenu.Button {
-    _init() {
+    _init(settings) {
       super._init(0.0, "IP/VPN Indicator");
+
+      this._settings = settings;
 
       // Create label for the panel
       this._label = new St.Label({
@@ -30,10 +32,10 @@ const NetworkIndicator = GObject.registerClass(
       });
     }
 
-    _updateIP() {
+    async _updateIP() {
       try {
         // Check for VPN first (tun0 interface)
-        let vpnIP = this._getInterfaceIP("tun0");
+        let vpnIP = await this._getInterfaceIP("tun0");
 
         if (vpnIP) {
           this._label.set_text(`󰌘  ${vpnIP}`);
@@ -41,19 +43,18 @@ const NetworkIndicator = GObject.registerClass(
         }
 
         // Check for Tailscale
-        let tailscaleInfo = this._checkTailscale();
+        let tailscaleInfo = await this._checkTailscale();
         if (tailscaleInfo) {
           this._label.set_text(tailscaleInfo);
           return;
         }
 
         // Fall back to regular network interface
-        let regularIPInfo = this._getRegularIP();
+        let regularIPInfo = await this._getRegularIP();
         if (regularIPInfo) {
           let icon = this._getInterfaceIcon(regularIPInfo.interface);
           this._label.set_text(
             `${regularIPInfo.ip} (${regularIPInfo.interface})`,
-            //`${icon}  ${regularIPInfo.ip} (${regularIPInfo.interface})`,
           );
         } else {
           this._label.set_text("󰈂 No Internet");
@@ -64,13 +65,45 @@ const NetworkIndicator = GObject.registerClass(
       }
     }
 
-    _getInterfaceIP(interface_name) {
+    async _execCommand(argv) {
       try {
-        let [, stdout] = GLib.spawn_command_line_sync(
-          `ip -o -4 addr show dev ${interface_name}`,
+        const proc = Gio.Subprocess.new(
+          argv,
+          Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
         );
 
-        let output = new TextDecoder().decode(stdout).trim();
+        const [stdout, stderr] = await new Promise((resolve, reject) => {
+          proc.communicate_utf8_async(null, null, (proc, res) => {
+            try {
+              const [, stdout, stderr] = proc.communicate_utf8_finish(res);
+              resolve([stdout, stderr]);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+
+        if (proc.get_successful()) {
+          return stdout ? stdout.trim() : "";
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async _getInterfaceIP(interface_name) {
+      try {
+        let output = await this._execCommand([
+          "ip",
+          "-o",
+          "-4",
+          "addr",
+          "show",
+          "dev",
+          interface_name,
+        ]);
+
         if (!output) return null;
 
         // Parse: "2: tun0    inet 10.8.0.2/24 ..."
@@ -79,21 +112,20 @@ const NetworkIndicator = GObject.registerClass(
           return match[1];
         }
       } catch (e) {
-        // Interface doesn't exist or error occurred
         return null;
       }
       return null;
     }
 
-    _checkTailscale() {
+    async _checkTailscale() {
       try {
         // Check if tailscale is installed
-        let [res] = GLib.spawn_command_line_sync("which tailscale");
-        if (res !== 0) return null;
+        let whichResult = await this._execCommand(["which", "tailscale"]);
+        if (!whichResult) return null;
 
         // Check for exit node
-        let [, stdout] = GLib.spawn_command_line_sync("tailscale status");
-        let output = new TextDecoder().decode(stdout);
+        let output = await this._execCommand(["tailscale", "status"]);
+        if (!output) return null;
 
         // Look for exit node line
         let lines = output.split("\n");
@@ -115,27 +147,31 @@ const NetworkIndicator = GObject.registerClass(
     _getInterfaceIcon(interface_name) {
       // WiFi interfaces usually start with 'wl' or 'wlan'
       if (interface_name.startsWith("wl")) {
-        return "  "; // WiFi icon
+        return "󰖩"; // WiFi icon
       }
       // Ethernet interfaces usually start with 'en', 'eth', 'enp'
       if (interface_name.startsWith("en") || interface_name.startsWith("eth")) {
-        return "󰈀 "; // Ethernet icon
+        return "󰈀"; // Ethernet icon
       }
       // Default network icon
-      return "󰈀 ";
+      return "󰈀";
     }
 
-    _getRegularIP() {
+    async _getRegularIP() {
       try {
-        // Get default route interface
-        let [, stdout] = GLib.spawn_command_line_sync("ip route get 1.1.1.1");
+        // Get the test IP from settings (default: 1.1.1.1)
+        let testIP = this._settings.get_string("test-ip");
 
-        let output = new TextDecoder().decode(stdout).trim();
+        // Get default route interface
+        let output = await this._execCommand(["ip", "route", "get", testIP]);
+
+        if (!output) return null;
+
         let match = output.match(/dev\s+(\S+)/);
 
         if (match && match[1]) {
           let interface_name = match[1];
-          let ip = this._getInterfaceIP(interface_name);
+          let ip = await this._getInterfaceIP(interface_name);
           if (ip) {
             return { ip: ip, interface: interface_name };
           }
@@ -158,7 +194,8 @@ const NetworkIndicator = GObject.registerClass(
 
 export default class IPVPNExtension extends Extension {
   enable() {
-    this._indicator = new NetworkIndicator();
+    this._settings = this.getSettings();
+    this._indicator = new NetworkIndicator(this._settings);
     Main.panel.addToStatusArea("ip-vpn-indicator", this._indicator);
   }
 
@@ -167,5 +204,6 @@ export default class IPVPNExtension extends Extension {
       this._indicator.destroy();
       this._indicator = null;
     }
+    this._settings = null;
   }
 }
