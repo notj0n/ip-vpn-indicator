@@ -9,5 +9,8 @@
   ],
   "version": "1.0.0",
   "url": "https://github.com/notj0n/ip-vpn-indicator",
-  "settings-schema": "org.gnome.shell.extensions.ip-vpn-indicator"
+  "settings-schema": "org.gnome.shell.extensions.ip-vpn-indicator",
+  "donations": {
+    "kofi": "notj0n"
+  }
 }
