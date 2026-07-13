@@ -21,20 +21,26 @@ export default class IPVPNPreferences extends ExtensionPreferences {
     });
     page.add(group);
 
-    // Create the test IP row
-    const row = new Adw.EntryRow({
-      title: "Test IP Address",
+    // Refresh interval row
+    const row = new Adw.SpinRow({
+      title: "Refresh interval",
+      subtitle:
+        "Seconds between Tailscale / status refreshes. Regular network changes are detected instantly.",
+      adjustment: new Gtk.Adjustment({
+        lower: 5,
+        upper: 600,
+        step_increment: 5,
+        page_increment: 30,
+      }),
     });
     group.add(row);
 
     // Bind the setting
-    settings.bind("test-ip", row, "text", Gio.SettingsBindFlags.DEFAULT);
-
-    // Add some helper text
-    const helperRow = new Adw.ActionRow({
-      title: "Common Options",
-      subtitle: "1.1.1.1 (Cloudflare)\n8.8.8.8 (Google DNS)\n9.9.9.9 (Quad9)",
-    });
-    group.add(helperRow);
+    settings.bind(
+      "refresh-interval",
+      row,
+      "value",
+      Gio.SettingsBindFlags.DEFAULT,
+    );
   }
 }

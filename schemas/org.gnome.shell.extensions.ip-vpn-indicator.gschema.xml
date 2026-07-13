@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.ip-vpn-indicator" path="/org/gnome/shell/extensions/ip-vpn-indicator/">
-    <key name="test-ip" type="s">
-      <default>'1.1.1.1'</default>
-      <summary>Test IP for network detection</summary>
-      <description>IP address used to detect the default network interface. Common choices: 1.1.1.1 (Cloudflare), 8.8.8.8 (Google), 9.9.9.9 (Quad9)</description>
+    <key name="refresh-interval" type="i">
+      <default>30</default>
+      <range min="5" max="600"/>
+      <summary>Refresh interval (seconds)</summary>
+      <description>How often to refresh the Tailscale exit-node status and re-check network state as a safety net. Regular network changes are detected instantly through NetworkManager, independently of this value.</description>
     </key>
   </schema>
 </schemalist>
