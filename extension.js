@@ -36,10 +36,9 @@ const NetworkIndicator = GObject.registerClass(
       });
       this.add_child(this._label);
 
-      // Detect the tailscale binary once (single spawn at startup) instead of
-      // running `which tailscale` on every refresh.
-      this._hasTailscale = false;
-      this._detectTailscale();
+      // Detect the tailscale binary once at startup (a cheap PATH lookup, no
+      // subprocess) instead of running `which tailscale` on every refresh.
+      this._hasTailscale = GLib.find_program_in_path("tailscale") !== null;
 
       // Guard so overlapping refreshes never stack subprocess spawns.
       this._updating = false;
@@ -49,35 +48,31 @@ const NetworkIndicator = GObject.registerClass(
       this._debounceId = 0;
 
       // React to NetworkManager state changes: this replaces the old 5s poll,
-      // so the common "regular IP" path never spawns anything.
-      this._signalIds = [];
-      const watch = (name) =>
-        this._signalIds.push(
-          this._client.connect(name, () => this._queueUpdate()),
-        );
-      watch("notify::primary-connection");
-      watch("notify::connectivity");
-      watch("notify::active-connections");
-      watch("any-device-added");
-      watch("any-device-removed");
+      // so the common "regular IP" path never spawns anything. Signals are
+      // tracked by owner (`this`) so cleanup is a single disconnectObject call.
+      const onChange = () => this._queueUpdate();
+      this._client.connectObject(
+        "notify::primary-connection", onChange,
+        "notify::connectivity", onChange,
+        "notify::active-connections", onChange,
+        "any-device-added", onChange,
+        "any-device-removed", onChange,
+        this,
+      );
 
       // Slow safety-net timer, mainly to keep the Tailscale exit node fresh
       // (it can change with no NM event). Reads NM state cheaply; only spawns
       // when a Tailscale/unmanaged tunnel is actually present.
       this._refreshId = 0;
       this._startRefreshTimer();
-      this._settingsChangedId = this._settings.connect(
+      this._settings.connectObject(
         "changed::refresh-interval",
         () => this._startRefreshTimer(),
+        this,
       );
 
       // First paint.
       this._queueUpdate();
-    }
-
-    async _detectTailscale() {
-      const result = await this._execCommand(["which", "tailscale"]);
-      this._hasTailscale = !!result;
     }
 
     _startRefreshTimer() {
@@ -250,12 +245,8 @@ const NetworkIndicator = GObject.registerClass(
         GLib.source_remove(this._refreshId);
         this._refreshId = 0;
       }
-      if (this._settingsChangedId) {
-        this._settings.disconnect(this._settingsChangedId);
-        this._settingsChangedId = 0;
-      }
-      for (const id of this._signalIds) this._client.disconnect(id);
-      this._signalIds = [];
+      this._settings.disconnectObject(this);
+      this._client.disconnectObject(this);
       super.destroy();
     }
   },
